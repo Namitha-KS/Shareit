@@ -228,8 +228,4 @@ if st.session_state.conversation:
             data=pdf_buffer,
             file_name="chatgpt_conversation_edited.pdf",
             mime="application/pdf"
-<<<<<<< HEAD
-        )
-=======
-        )
->>>>>>> 3100cccc9e442e6d40e9162d00834297c20b1489
+        ) 
