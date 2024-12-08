@@ -169,7 +169,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("ChatGPT Conversation Extractor")
+st.title("Make your GPT chats a PDF")
 st.write("Enter a ChatGPT share link to extract, edit, and download the conversation as a PDF.")
 
 
@@ -207,10 +207,10 @@ if st.session_state.conversation:
         col1, col2 = st.columns([1, 4])
         
         with col1:
-            edited_role = st.text_input(f"Role {idx+1}", value=role, key=f"role_{idx}")
+            edited_role = st.text_input(f"Prompt {idx+1}", value=role, key=f"role_{idx}")
         
         with col2:
-            edited_message = st.text_area(f"Message {idx+1}", value=message, key=f"message_{idx}")
+            edited_message = st.text_area(f"Response {idx+1}", value=message, key=f"message_{idx}")
         
         is_edited = (edited_role != role) or (edited_message != message)
         edited_conversation.append([edited_role, edited_message, is_edited])
