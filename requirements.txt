@@ -2,5 +2,4 @@ selenium-wire>=5.1.0
 selenium>=4.27.1
 streamlit>=1.40.2
 reportlab>=4.2.5
-reportlab>=4.2.5
 undetected-chromedriver>=3.5.5
