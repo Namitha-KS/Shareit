@@ -1,5 +1,6 @@
 import streamlit as st
-import undetected_chromedriver as uc
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -29,9 +30,10 @@ def clean_text_for_pdf(text):
 
 def validate_chat_url(url):
     """Validate if the URL matches ChatGPT share link patterns."""
+    url = url.strip()
     patterns = [
-        r'https://chat\.openai\.com/share/[a-zA-Z0-9-]+',
-        r'https://chatgpt\.com/share/[a-zA-Z0-9-]+'
+        r'^https?:\/\/chat\.openai\.com\/share\/[a-zA-Z0-9-]+$',
+        r'^https?:\/\/chatgpt\.com\/share\/[a-zA-Z0-9-]+$'
     ]
     
     for pattern in patterns:
@@ -113,36 +115,47 @@ def extract_conversation(url):
     """Extract conversation content from a shared ChatGPT URL."""
     try:
         with st.spinner("Initializing browser..."):
-            options = uc.ChromeOptions()
-            options.add_argument('--headless')
-            options.add_argument('--no-sandbox')
-            options.add_argument('--disable-gpu')
-            driver = uc.Chrome(options=options)
+            chrome_options = Options()
+            chrome_options.add_argument('--headless')
+            chrome_options.add_argument('--no-sandbox')
+            chrome_options.add_argument('--disable-dev-shm-usage')
+            chrome_options.add_argument('--disable-gpu')
+            chrome_options.add_argument('--disable-software-rasterizer')
+            chrome_options.add_argument('--disable-extensions')
+            chrome_options.add_argument('--window-size=1920,1080')
+            chrome_options.add_argument('--start-maximized')
+            chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+            
+            driver = webdriver.Chrome(options=chrome_options)
         
         with st.spinner("Loading conversation..."):
             driver.get(url)
             wait = WebDriverWait(driver, 20)
-            conversation_elements = wait.until(
-                EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div[class*='markdown']"))
-            )
+            
+            # Wait for the content to load
+            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[class*='markdown']")))
+            time.sleep(2)  # Additional wait to ensure content is fully loaded
+            
+            conversation_elements = driver.find_elements(By.CSS_SELECTOR, "div[class*='markdown']")
             role_elements = driver.find_elements(By.CSS_SELECTOR, "div[class*='font-semibold']")
         
         conversation = []
         for idx, content in enumerate(conversation_elements):
             role = role_elements[idx].text if idx < len(role_elements) else "Unknown"
             message = content.text.strip()
-            conversation.append([role, message, False])  # False indicates not edited
+            conversation.append([role, message, False])
         
         return conversation
     
     except Exception as e:
-        st.error(f"An error occurred: {str(e)}")
+        st.error(f"An error occurred while extracting the conversation: {str(e)}")
         return None
     
     finally:
         if 'driver' in locals():
             driver.quit()
 
+# Streamlit UI setup
 st.set_page_config(
     page_title="ChatGPT Conversation Extractor",
     page_icon="💬",
@@ -172,10 +185,11 @@ st.markdown("""
 st.title("Make your GPT chats a PDF")
 st.write("Enter a ChatGPT share link to extract, edit, and download the conversation as a PDF.")
 
-
+# Initialize session state
 if 'conversation' not in st.session_state:
     st.session_state.conversation = None
 
+# Input and processing
 url = st.text_input("ChatGPT Share Link", placeholder="https://chat.openai.com/share/...")
 
 if st.button("Extract Conversation"):
@@ -185,11 +199,11 @@ if st.button("Extract Conversation"):
         validated_url = validate_chat_url(url)
         if not validated_url:
             st.error("Invalid ChatGPT share URL format. Please check the URL and try again.")
+            st.info("Make sure the URL starts with 'https://' and follows the format: https://chat.openai.com/share/[ID]")
         else:
             st.session_state.conversation = extract_conversation(validated_url)
             
             if st.session_state.conversation:
-                # Create original PDF download button
                 pdf_buffer = create_pdf(st.session_state.conversation)
                 if pdf_buffer:
                     st.download_button(
@@ -199,6 +213,7 @@ if st.button("Extract Conversation"):
                         mime="application/pdf"
                     )
 
+# Display and edit conversation
 if st.session_state.conversation:
     st.subheader("Edit Conversation")
     edited_conversation = []
@@ -217,10 +232,8 @@ if st.session_state.conversation:
         
         st.markdown("---")
     
-
     st.session_state.conversation = edited_conversation
     
-
     pdf_buffer = create_pdf(edited_conversation)
     if pdf_buffer:
         st.download_button(
@@ -228,4 +241,4 @@ if st.session_state.conversation:
             data=pdf_buffer,
             file_name="chatgpt_conversation_edited.pdf",
             mime="application/pdf"
-        ) 
+        )
